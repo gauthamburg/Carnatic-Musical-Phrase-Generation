@@ -59,3 +59,42 @@ class ConditionalUNet1D(nn.Module):
         x = torch.cat([x3, x1], dim=1)
 
         return self.output_conv(x)
+
+
+
+class GaussianDiffusion1D:
+    def __init__(self, timesteps=500):
+        self.timesteps = timesteps
+
+        self.betas = torch.linspace(1e-4, 0.02, timesteps, device=device)
+        self.alphas = 1.0 - self.betas
+        self.alpha_bars = torch.cumprod(self.alphas, dim=0)
+
+    def add_noise(self, x0, t, noise=None):
+        if noise is None:
+            noise = torch.randn_like(x0)
+
+        alpha_bar = self.alpha_bars[t].view(-1, 1, 1)
+
+        noisy = (
+            torch.sqrt(alpha_bar) * x0 +
+            torch.sqrt(1 - alpha_bar) * noise
+        )
+
+        return noisy, noise
+
+
+diffusion = GaussianDiffusion1D(timesteps=500)
+
+# Test the forward diffusion process
+sample_x, sample_labels = next(iter(dataloader))
+sample_x = sample_x.to(device)
+sample_labels = sample_labels.to(device)
+sample_t = torch.randint(0, diffusion.timesteps, (sample_x.size(0),), device=device)
+
+noisy_x, actual_noise = diffusion.add_noise(sample_x, sample_t)
+
+print("Original batch:", sample_x.shape)
+print("Noisy batch:", noisy_x.shape)
+print("Noise schedule:", diffusion.timesteps, "steps")
+print("Diffusion test successful.")
