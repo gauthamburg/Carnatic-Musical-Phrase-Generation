@@ -88,17 +88,6 @@ class GaussianDiffusion1D:
         return noisy, noise
 
 
-diffusion = GaussianDiffusion1D(timesteps=500)
 
-# Test the forward diffusion process
-sample_x, sample_labels = next(iter(dataloader))
-sample_x = sample_x.to(device)
-sample_labels = sample_labels.to(device)
-sample_t = torch.randint(0, diffusion.timesteps, (sample_x.size(0),), device=device)
 
-noisy_x, actual_noise = diffusion.add_noise(sample_x, sample_t)
 
-print("Original batch:", sample_x.shape)
-print("Noisy batch:", noisy_x.shape)
-print("Noise schedule:", diffusion.timesteps, "steps")
-print("Diffusion test successful.")
