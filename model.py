@@ -63,10 +63,14 @@ class ConditionalUNet1D(nn.Module):
 
 
 class GaussianDiffusion1D:
-    def __init__(self, timesteps=500):
+    def __init__(self, timesteps=500, device="cpu"):
         self.timesteps = timesteps
+        self.device = device
 
-        self.betas = torch.linspace(1e-4, 0.02, timesteps, device=device)
+        self.betas = torch.linspace(
+            1e-4, 0.02, timesteps, device=self.device
+        )
+
         self.alphas = 1.0 - self.betas
         self.alpha_bars = torch.cumprod(self.alphas, dim=0)
 
