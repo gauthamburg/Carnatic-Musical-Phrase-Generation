@@ -1,14 +1,18 @@
 
 import os
+import numpy as np
 import torch
 import torch.optim as optim
 import matplotlib.pyplot as plt
 
-from models.vae.model import VAE, vae_loss
+from model import VAE, vae_loss
 
 
 def train_vae(
     dataloader,
+    dataset,
+    contour_mean,
+    contour_std,
     device,
     epochs=300,
     learning_rate=0.001,
@@ -17,7 +21,6 @@ def train_vae(
 ):
     os.makedirs(output_dir, exist_ok=True)
 
-    # Initialize VAE
     model = VAE(
         input_dim=128,
         latent_dim=latent_dim
@@ -30,18 +33,17 @@ def train_vae(
 
     loss_history = []
 
-    # Training
+    print("VAE training started")
+    print("Device:", device)
+    print("Training instances:", len(dataset))
+
     for epoch in range(epochs):
         model.train()
         total_loss = 0.0
         total_samples = 0
 
-        for x, labels in dataloader:
-
-            # Shape: [batch_size, 1, 128]
+        for x in dataloader:
             x = x.to(device)
-
-            # Flatten to [batch_size, 128]
             x = x.reshape(x.size(0), -1)
 
             optimizer.zero_grad()
@@ -58,17 +60,15 @@ def train_vae(
             total_loss += loss.item()
             total_samples += x.size(0)
 
-        # Average loss per sample
         epoch_loss = total_loss / total_samples
         loss_history.append(epoch_loss)
 
         if (epoch + 1) % 10 == 0:
             print(
-                f"Epoch [{epoch+1}/{epochs}], "
-                f"Loss: {epoch_loss:.4f}"
+                f"Epoch [{epoch + 1}/{epochs}] "
+                f"| Loss: {epoch_loss:.4f}"
             )
 
-    # Save trained model
     checkpoint_path = os.path.join(
         output_dir, "vae_model.pt"
     )
@@ -77,10 +77,11 @@ def train_vae(
         "model_state_dict": model.state_dict(),
         "latent_dim": latent_dim,
         "input_dim": 128,
+        "contour_mean": float(contour_mean),
+        "contour_std": float(contour_std),
         "loss_history": loss_history
     }, checkpoint_path)
 
-    # Save loss history
     loss_path = os.path.join(
         output_dir, "training_loss.png"
     )
@@ -92,8 +93,10 @@ def train_vae(
     plt.title("VAE Training Loss")
     plt.grid(True)
     plt.savefig(loss_path)
+    plt.show()
     plt.close()
 
+    print("VAE training completed!")
     print("Model saved:", checkpoint_path)
 
-    return model, loss_history
+    return checkpoint_path, loss_history
