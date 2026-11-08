@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from model import TransformerVAE, vae_loss
 
 
-def train_transformer_vae(
+def train_model(
     dataloader,
     dataset,
     contour_mean,

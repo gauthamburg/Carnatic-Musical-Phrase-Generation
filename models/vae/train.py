@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from model import VAE, vae_loss
 
 
-def train_vae(
+def train_model(
     dataloader,
     dataset,
     contour_mean,
