@@ -5,6 +5,7 @@
 
 import os
 import json
+import re
 import numpy as np
 import pandas as pd
 import torch
@@ -59,21 +60,37 @@ def get_performance_ragas(folder):
 # ==========================================
 
 def get_tonic(folder):
+    """Read the tonic (Hz) for this individual performance.
 
-    for filename in os.listdir(folder):
+    The current dataset convention stores the tonic as the first numeric
+    value in a .ctonic.txt file. Returns None if no valid value is found.
+    """
+    for filename in sorted(os.listdir(folder)):
+        if not filename.endswith(".ctonic.txt"):
+            continue
 
-        if filename.endswith(".ctonic.txt"):
+        tonic_path = os.path.join(folder, filename)
 
-            try:
-                with open(
-                    os.path.join(folder, filename),
-                    "r"
-                ) as f:
+        try:
+            with open(tonic_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
 
-                    return float(f.read().strip().split()[0])
+            # Extract the first numeric value (also supports scientific notation).
+            values = re.findall(
+                r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?",
+                content
+            )
 
-            except (ValueError, OSError, IndexError):
+            if not values:
                 continue
+
+            tonic_hz = float(values[0])
+
+            if np.isfinite(tonic_hz) and tonic_hz > 0:
+                return tonic_hz
+
+        except (ValueError, OSError, UnicodeError):
+            continue
 
     return None
 
@@ -188,13 +205,22 @@ def extract_contours(
         if times is None:
             continue
 
+        # Each performance uses its own tonic; no global/hardcoded tonic is used.
         tonic = get_tonic(root)
 
-        if tonic is None or tonic <= 0:
+        if tonic is None:
+            print(f"Skipping {root}: valid .ctonic.txt tonic not found")
             continue
 
         # Identify valid pitch values
-        valid = np.isfinite(f0) & (f0 > 0)
+        # Ensure pitch and timestamp arrays are aligned before conversion.
+        times = np.asarray(times, dtype=float).reshape(-1)
+        f0 = np.asarray(f0, dtype=float).reshape(-1)
+        if len(times) != len(f0):
+            skipped += 1
+            continue
+
+        valid = np.isfinite(times) & np.isfinite(f0) & (f0 > 0)
 
         if valid.sum() < 2:
             continue
@@ -210,6 +236,10 @@ def extract_contours(
         cents = pd.Series(cents).interpolate(
             limit_direction="both"
         ).to_numpy()
+
+        # Skip performances whose pitch track could not be interpolated.
+        if not np.isfinite(cents).any():
+            continue
 
         # Process annotation files
         for af in annotation_files:
@@ -298,6 +328,7 @@ def extract_contours(
     print("Selected raga:", raga)
     print("Selected phrase:", phrase)
     print("Matching performances:", matching_performances)
+    print("Tonic handling: read separately from each performance's .ctonic.txt")
     print("Extracted phrase instances:", len(contours))
     print("Skipped instances:", skipped)
     print("Contour array shape:", contours.shape)
