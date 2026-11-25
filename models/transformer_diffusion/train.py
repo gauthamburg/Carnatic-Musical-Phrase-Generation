@@ -19,6 +19,7 @@ def _get_contours_from_batch(batch):
 
 def train_model(
     dataloader,
+    dataset,
     contour_mean,
     contour_std,
     device,
